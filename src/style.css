@@ -21,35 +21,45 @@ html, body, #root {
   margin: 0;
   padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: var(--body-bg);
+  background-color: #1a1a2e; /* Dark background for the particle effect */
   height: 100%;
-  color: var(--text-primary);
 }
 
 #root {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
-  background: #000;
+  padding: 0; 
 }
 
-/* --- 2. Login Screen --- */
+
+/* --- 2. Login Screen (Glassmorphism Effect) --- */
+.login-page-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
 .login-container {
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 0px 40px rgb(255 255 255 / 76%);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 420px;
   text-align: center;
-  border: 1px solid var(--border-color);
 }
 
 .login-container h2 {
+  color: #ffffff;
   margin-top: 0;
   margin-bottom: 30px;
-  color: var(--text-primary);
   font-size: 26px;
   font-weight: 600;
 }
@@ -58,18 +68,23 @@ html, body, #root {
   width: 100%;
   padding: 14px 20px;
   margin-bottom: 15px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   font-size: 1rem;
-  background-color: #f9f9f9;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
   transition: all 0.2s ease-in-out;
+}
+
+.login-container input::placeholder {
+  color: #dddddd;
 }
 
 .login-container input:focus {
   outline: none;
+  background-color: rgba(255, 255, 255, 0.3);
   border-color: var(--primary-color);
-  background-color: var(--card-bg);
-  box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.1);
+  box-shadow: 0 0 0 3px rgba(106, 90, 249, 0.2);
 }
 
 .login-container button {
@@ -90,6 +105,7 @@ html, body, #root {
   background-color: var(--primary-hover-color);
 }
 
+
 /* --- 3. Main Chat App Layout --- */
 .app-container {
   display: flex;
@@ -98,7 +114,7 @@ html, body, #root {
   max-width: 1400px;
   margin: auto;
   background: var(--card-bg);
-  box-shadow: 0 0px 40px rgb(255 255 255 / 76%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
   border-radius: 20px;
   overflow: hidden;
   border: 1px solid var(--border-color);
@@ -111,6 +127,7 @@ html, body, #root {
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
 .chat-window {
@@ -279,14 +296,8 @@ html, body, #root {
 }
 
 /* --- 7. Sidebar Footer & Buttons --- */
-
-.sidebar {
-  /* This ensures the footer can be pushed to the bottom */
-  justify-content: space-between;
-}
-
 .sidebar-footer {
-  margin-top: auto; /* Pushes this whole section to the bottom */
+  margin-top: auto;
   padding-top: 10px;
   border-top: 1px solid var(--border-color);
 }
@@ -318,8 +329,8 @@ html, body, #root {
 }
 
 .clear-chat-button {
-  background-color: #f39c12; /* A warning orange color */
-  margin-bottom: 10px; /* Space between the two buttons */
+  background-color: #f39c12;
+  margin-bottom: 10px;
 }
 
 .clear-chat-button:hover {
@@ -327,9 +338,206 @@ html, body, #root {
 }
 
 .logout-button {
-  background-color: #e74c3c; /* A destructive action red color */
+  background-color: #e74c3c;
 }
 
 .logout-button:hover {
   background-color: #c0392b;
+}
+
+/* Add these styles to the message input area section */
+
+.icon-button {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.icon-button:hover {
+  color: var(--primary-color);
+}
+
+.send-button {
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.send-button:hover {
+  background-color: var(--primary-hover-color);
+  color: white;
+}
+
+/* --- 8. Responsive Design (Media Queries) --- */
+
+/* For tablets and larger phones */
+@media (max-width: 768px) {
+  #root {
+    padding: 0;
+  }
+
+  .app-container {
+    flex-direction: column;
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 40vh; 
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    justify-content: flex-start;
+  }
+
+  .sidebar-footer {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    border-top: none;
+    padding-top: 0;
+    margin-top: 15px;
+  }
+  
+  .current-user-display {
+    margin: 0;
+    padding: 0;
+    text-align: left;
+    flex-grow: 1;
+  }
+
+  .clear-chat-button,
+  .logout-button {
+    width: auto;
+    margin-bottom: 0;
+  }
+
+  .messages {
+    padding: 15px;
+  }
+  
+  .message {
+      max-width: 80%;
+  }
+  
+  .message-input-area {
+      padding: 10px 15px;
+  }
+}
+
+/* Add or update these styles in your CSS file */
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #ccc; /* Default color */
+  color: #1e1e1e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+/* Sidebar user list item */
+.sidebar-item {
+  /* This is already a flex container, which is perfect */
+}
+
+/* Current user display in footer */
+.current-user-display {
+  display: flex;
+  align-items: center;
+  padding: 10px 5px;
+  text-align: left;
+}
+
+.current-user-display .user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.current-user-display strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+.current-user-display span {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+
+/* Message Area Layout */
+.message-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    max-width: 75%;
+}
+
+.message-wrapper .avatar {
+    margin-right: 0;
+}
+
+.other-message-wrapper {
+    align-self: flex-start;
+}
+
+.my-message-wrapper {
+    align-self: flex-end;
+    flex-direction: row-reverse; /* Flips the order for my messages */
+}
+
+/* Hide avatar for my messages and system messages */
+.my-message-wrapper .avatar,
+.message-wrapper:has(strong:contains("System")) .avatar {
+    display: none;
+}
+
+/* For small mobile phones */
+@media (max-width: 480px) {
+  .login-page-wrapper {
+    padding: 0;
+  }
+
+  .login-container {
+    padding: 25px;
+    border: none;
+    box-shadow: none;
+    height: 100%;
+    border-radius: 0;
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .sidebar h3, .sidebar h4 {
+    font-size: 0.9rem;
+  }
+
+  .messages {
+    padding: 10px;
+  }
+
+  .message-input-area input,
+  .message-input-area button {
+    padding: 12px 15px;
+    font-size: 0.95rem;
+  }
 }

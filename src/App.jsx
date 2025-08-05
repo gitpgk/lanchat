@@ -1,6 +1,30 @@
 import React, { useState, useEffect, useRef } from "react";
 import { socket } from "./socket";
 import "./style.css";
+import ParticleBackground from "./ParticleBackground";
+import { IoSend, IoAttach } from "react-icons/io5";
+
+// --- NEW: Helper function to get initials from a name ---
+const getInitials = (name) => {
+  if (!name) return '';
+  const words = name.split(' ');
+  if (words.length > 1) {
+    return words[0][0] + words[1][0];
+  }
+  return name.substring(0, 2);
+};
+
+// --- NEW: Helper function to get a consistent color from a name ---
+const avatarColors = [
+    '#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', 
+    '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'
+];
+const getColorFromName = (name) => {
+    if (!name) return '#ccc';
+    const charCodeSum = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return avatarColors[charCodeSum % avatarColors.length];
+};
+
 
 export default function App() {
   // --- All your existing state and refs remain the same ---
@@ -135,11 +159,10 @@ export default function App() {
     }, 2000);
   }
 
-  // --- NEW: Function to handle key presses in the input ---
   function handleKeyDown(event) {
-    handleTyping(); // We still want the "is typing" indicator to work on any key press
+    handleTyping();
     if (event.key === 'Enter') {
-      event.preventDefault(); // Prevents a new line from being added
+      event.preventDefault();
       handleSendMessage();
     }
   }
@@ -154,11 +177,14 @@ export default function App() {
 
   if (!inChat) {
     return (
-      <div className="login-container">
-        <h2>Join Chat Room</h2>
-        <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter username" />
-        <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Enter room name" />
-        <button onClick={handleJoinChat}>Join</button>
+      <div className="login-page-wrapper">
+        <ParticleBackground />
+        <div className="login-container">
+          <h2>Join Chat Room</h2>
+          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter username" />
+          <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Enter room name" />
+          <button onClick={handleJoinChat}>Join</button>
+        </div>
       </div>
     );
   }
@@ -174,7 +200,9 @@ export default function App() {
           <ul className="user-list">
             {users.filter(u => u !== username).map((user) => (
               <li key={user} className={`sidebar-item ${activeChat === user ? 'active' : ''}`} onClick={() => setActiveChat(user)}>
-                <span className="online-indicator"></span>
+                <div className="avatar" style={{ backgroundColor: getColorFromName(user) }}>
+                  {getInitials(user)}
+                </div>
                 {user}
               </li>
             ))}
@@ -182,7 +210,13 @@ export default function App() {
         </div>
         <div className="sidebar-footer">
           <div className="current-user-display">
-            Logged in as: <strong>{username}</strong>
+            <div className="avatar" style={{ backgroundColor: getColorFromName(username) }}>
+                {getInitials(username)}
+            </div>
+            <div className="user-info">
+                <strong>{username}</strong>
+                <span>Logged In</span>
+            </div>
           </div>
           <button onClick={handleClearChat} className="clear-chat-button">Clear Chat</button>
           <button onClick={handleLogout} className="logout-button">Logout</button>
@@ -194,29 +228,37 @@ export default function App() {
         </div>
         <div className="messages">
           {displayedMessages.map((msg, index) => (
-            <div key={index} className={`message ${(msg.user || msg.from) === username ? "my-message" : "other-message"}`}>
-              <div className="message-content">
-                <strong>{`${msg.user || msg.from}: `}</strong>
-                {`${msg.text}`}
+            <div key={index} className={`message-wrapper ${(msg.user || msg.from) === username ? "my-message-wrapper" : "other-message-wrapper"}`}>
+              <div className="avatar" style={{ backgroundColor: getColorFromName(msg.user || msg.from) }}>
+                  {getInitials(msg.user || msg.from)}
               </div>
-              <div className="message-timestamp">
-                {msg.timestamp && new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <div className={`message ${(msg.user || msg.from) === username ? "my-message" : "other-message"}`}>
+                  <div className="message-content">
+                      <strong>{`${msg.user || msg.from}: `}</strong>
+                      {`${msg.text}`}
+                  </div>
+                  <div className="message-timestamp">
+                      {msg.timestamp && new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
               </div>
             </div>
           ))}
           <div ref={messagesEndRef} />
         </div>
         <div className="typing-indicator">{typingDisplay}</div>
-        
-        {/* --- UPDATE: The input now uses the new handleKeyDown function --- */}
         <div className="message-input-area">
+          <button className="icon-button">
+            <IoAttach size={22} />
+          </button>
           <input 
             value={messageInput} 
             onChange={(e) => setMessageInput(e.target.value)} 
             onKeyDown={handleKeyDown} 
             placeholder={`Message ${activeChat}`} 
           />
-          <button onClick={handleSendMessage}>Send</button>
+          <button onClick={handleSendMessage} className="icon-button send-button">
+            <IoSend size={22} />
+          </button>
         </div>
       </div>
     </div>
