@@ -1,3 +1,4 @@
+// src/App.jsx (CORRECTED)
 import React, { useState, useEffect, useRef } from "react";
 import { socket } from "./socket";
 import "./style.css";
@@ -11,12 +12,12 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
   const [typingDisplay, setTypingDisplay] = useState("");
+  const [activeChat, setActiveChat] = useState("");
 
-  // Refs for auto-scroll and typing timeout
+  // Refs
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Auto-scroll function
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -25,54 +26,71 @@ export default function App() {
   useEffect(() => {
     socket.connect();
 
-    function onMessage(data) {
-      setMessages((prevMessages) => [...prevMessages, data]);
+    function onLoadHistory({ messages: history }) {
+      const formattedHistory = history.map(msg => ({
+        user: msg.username,
+        text: msg.text,
+        timestamp: msg.timestamp,
+        isPrivate: false,
+      }));
+      setMessages(formattedHistory);
     }
 
+    function onMessage(data) {
+      setMessages(prev => [...prev, data]);
+    }
+
+    // *** CHANGE 1: The listener now just sets the raw user data ***
     function onRoomData({ users }) {
       setUsers(users);
     }
 
-    function onUserTyping({ username, isTyping }) {
+    function onUserTyping({ username: typingUsername, isTyping }) {
       if (isTyping) {
-        setTypingDisplay(`${username} is typing...`);
+        setTypingDisplay(`${typingUsername} is typing...`);
       } else {
         setTypingDisplay("");
       }
     }
 
-    // Register listeners
+    socket.on("loadHistory", onLoadHistory);
     socket.on("message", onMessage);
     socket.on("roomData", onRoomData);
     socket.on("userTyping", onUserTyping);
 
-    // Cleanup listeners on component unmount
     return () => {
+      socket.off("loadHistory", onLoadHistory);
       socket.off("message", onMessage);
       socket.off("roomData", onRoomData);
       socket.off("userTyping", onUserTyping);
       socket.disconnect();
     };
-  }, []);
+  }, []); // *** CHANGE 2: Dependency array is now empty to run only once ***
 
   // Effect for auto-scrolling
   useEffect(() => {
     scrollToBottom();
-  }, [messages]); // Runs every time the messages array changes
+  }, [messages]);
 
   // Handler functions
   function handleJoinChat() {
     if (!username || !room) return alert("Please fill all fields.");
     socket.emit("joinRoom", { username, room });
     setInChat(true);
+    setActiveChat(room);
   }
 
   function handleSendMessage() {
     if (messageInput.trim() !== "") {
-      socket.emit("chatMessage", messageInput);
+      if (activeChat === room) {
+        socket.emit("chatMessage", messageInput);
+      } else {
+        socket.emit("privateMessage", { content: messageInput, to: activeChat });
+      }
       setMessageInput("");
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      socket.emit("typing", { room, isTyping: false });
+      const recipient = activeChat !== room ? activeChat : null;
+      socket.emit("typing", { room, isTyping: false, recipient });
     }
   }
 
@@ -80,28 +98,28 @@ export default function App() {
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    socket.emit("typing", { room, isTyping: true });
+    const recipient = activeChat !== room ? activeChat : null;
+    socket.emit("typing", { room, isTyping: true, recipient });
 
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit("typing", { room, isTyping: false });
-    }, 2000); // 2 seconds
+      socket.emit("typing", { room, isTyping: false, recipient });
+    }, 2000);
   }
+  
+  const displayedMessages = messages.filter(msg => {
+    if (activeChat === room) {
+      return !msg.isPrivate;
+    } else {
+      return msg.isPrivate && ((msg.from === username && msg.to === activeChat) || (msg.from === activeChat && msg.to === username));
+    }
+  });
 
-  // Conditional Rendering: Login screen or Chat screen
   if (!inChat) {
     return (
       <div className="login-container">
         <h2>Join Chat Room</h2>
-        <input
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Enter username"
-        />
-        <input
-          value={room}
-          onChange={(e) => setRoom(e.target.value)}
-          placeholder="Enter room name"
-        />
+        <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter username" />
+        <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Enter room name" />
         <button onClick={handleJoinChat}>Join</button>
       </div>
     );
@@ -110,11 +128,21 @@ export default function App() {
   return (
     <div className="app-container">
       <div className="sidebar">
-        <h3>Room: {room}</h3>
-        <h4>Online Users ({users.length})</h4>
+        <div 
+          className={`sidebar-item ${activeChat === room ? 'active' : ''}`}
+          onClick={() => setActiveChat(room)}
+        >
+          <h3>Room: {room}</h3>
+        </div>
+        {/* The user list is now filtered here during render, using the current username */}
+        <h4>Online Users ({users.filter(u => u !== username).length})</h4>
         <ul className="user-list">
-          {users.map((user, index) => (
-            <li key={index}>
+          {users.filter(u => u !== username).map((user) => (
+            <li 
+              key={user} 
+              className={`sidebar-item ${activeChat === user ? 'active' : ''}`}
+              onClick={() => setActiveChat(user)}
+            >
               <span className="online-indicator"></span>
               {user}
             </li>
@@ -123,16 +151,19 @@ export default function App() {
       </div>
 
       <div className="chat-window">
+        <div className="chat-header">
+            <h3>{activeChat}</h3>
+        </div>
         <div className="messages">
-          {messages.map((msg, index) => (
+          {displayedMessages.map((msg, index) => (
             <div
               key={index}
               className={`message ${
-                msg.user === username ? "my-message" : "other-message"
+                (msg.user || msg.from) === username ? "my-message" : "other-message"
               }`}
             >
               <div className="message-content">
-                <strong>{`${msg.user}: `}</strong>
+                <strong>{`${msg.user || msg.from}: `}</strong>
                 {`${msg.text}`}
               </div>
               <div className="message-timestamp">
@@ -148,13 +179,11 @@ export default function App() {
         <div className="message-input-area">
           <input
             value={messageInput}
-            onChange={(e) => {
-              setMessageInput(e.target.value);
-              handleTyping();
-            }}
-            placeholder="Type a message"
+            onChange={(e) => setMessageInput(e.target.value)}
+            onKeyDown={handleTyping}
+            placeholder={`Message ${activeChat}`}
           />
-          <button onClick={handleSendMessage}>Sendooo</button>
+          <button onClick={handleSendMessage}>Send</button>
         </div>
       </div>
     </div>

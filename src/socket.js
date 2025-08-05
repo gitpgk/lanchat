@@ -1,6 +1,6 @@
 // src/socket.js
 import { io } from 'socket.io-client';
 
-// Connect to the server.
-// The URL should point to your server.
-export const socket = io('http://192.168.0.216:3000');
+// Connect to the server using the environment variable.
+// Vite automatically makes `import.meta.env.VITE_SERVER_URL` available.
+export const socket = io(import.meta.env.VITE_SERVER_URL);

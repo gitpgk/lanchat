@@ -1,12 +1,11 @@
-// server.js (UPDATED FOR MYSQL)
+// server.js (UPDATED FOR PRIVATE MESSAGING)
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import mysql from 'mysql2/promise'; // *** NEW: Import mysql2
+import mysql from 'mysql2/promise';
 
-// Replicate __dirname functionality
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -19,11 +18,10 @@ const io = new Server(server, {
   }
 });
 
-// *** NEW: MySQL Connection Pool ***
 const dbPool = mysql.createPool({
   host: 'localhost',
-  user: 'root', // Default XAMPP user
-  password: '',   // Default XAMPP password
+  user: 'root',
+  password: '',
   database: 'react_chat_app',
   waitForConnections: true,
   connectionLimit: 10,
@@ -31,40 +29,45 @@ const dbPool = mysql.createPool({
 });
 console.log('MySQL Connection Pool created.');
 
+// *** NEW: Store mappings of username to socket ID ***
+const userSockets = {};
 
-// Store chat room data (for online users list)
+// Store chat room data
 const rooms = {};
 
 io.on('connection', (socket) => {
   console.log('New user connected');
 
-  socket.on('joinRoom', async ({ username, room }) => { // *** ADDED async ***
+  socket.on('joinRoom', async ({ username, room }) => {
     try {
       socket.join(room);
       socket.username = username;
       socket.room = room;
+
+      // *** NEW: Map username to their socket ID ***
+      userSockets[username] = socket.id;
 
       if (!rooms[room]) {
         rooms[room] = { users: [] };
       }
       rooms[room].users.push(username);
 
-      // *** NEW: Fetch message history from DB ***
       const [historyRows] = await dbPool.query(
         'SELECT username, message_text as text, timestamp FROM messages WHERE room_name = ? ORDER BY timestamp ASC LIMIT 50',
         [room]
       );
-      // Emit history only to the user who just joined
-      socket.emit('loadHistory', historyRows);
+      socket.emit('loadHistory', { room, messages: historyRows });
 
       socket.emit('message', {
         user: 'System',
         text: `Welcome to the ${room} room, ${username}!`,
+        isPrivate: false,
       });
 
       socket.to(room).emit('message', {
         user: 'System',
         text: `${username} has joined the chat`,
+        isPrivate: false,
       });
 
       io.to(room).emit('roomData', {
@@ -76,17 +79,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('chatMessage', async (msg) => { // *** ADDED async ***
+  socket.on('chatMessage', async (msg) => {
     const messageData = {
       user: socket.username,
       text: msg,
-      timestamp: new Date()
+      timestamp: new Date(),
+      isPrivate: false,
     };
     
-    // Broadcast message to all clients
     io.to(socket.room).emit('message', messageData);
 
-    // *** NEW: Save message to database ***
     try {
       await dbPool.query(
         'INSERT INTO messages (room_name, username, message_text) VALUES (?, ?, ?)',
@@ -97,19 +99,46 @@ io.on('connection', (socket) => {
     }
   });
 
-  // "is typing" and "disconnect" handlers remain the same...
-  socket.on('typing', ({ room, isTyping }) => {
-    socket.broadcast.to(room).emit('userTyping', { username: socket.username, isTyping });
+  // *** NEW: Handler for private messages ***
+  socket.on('privateMessage', ({ content, to }) => {
+    const recipientSocketId = userSockets[to];
+    
+    const messageData = {
+        from: socket.username,
+        to: to,
+        text: content,
+        timestamp: new Date(),
+        isPrivate: true,
+    };
+
+    if (recipientSocketId) {
+        // Send to the recipient
+        io.to(recipientSocketId).emit('message', messageData);
+        // Send to the sender
+        socket.emit('message', messageData);
+    }
+  });
+
+  socket.on('typing', ({ room, isTyping, recipient }) => {
+    if (recipient) { // Private chat typing
+      const recipientSocketId = userSockets[recipient];
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('userTyping', { username: socket.username, isTyping });
+      }
+    } else { // Room chat typing
+      socket.broadcast.to(room).emit('userTyping', { username: socket.username, isTyping });
+    }
   });
 
   socket.on('disconnect', () => {
-    if (socket.username && socket.room) {
-      const room = socket.room;
-      const username = socket.username;
-
+    const username = socket.username;
+    const room = socket.room;
+    if (username && room) {
       if (rooms[room]) {
         rooms[room].users = rooms[room].users.filter(user => user !== username);
       }
+      // *** NEW: Remove user from socket mapping ***
+      delete userSockets[username];
 
       io.to(room).emit('message', {
         user: 'System',
