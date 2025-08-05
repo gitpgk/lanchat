@@ -154,7 +154,7 @@ export default function App() {
             }}
             placeholder="Type a message"
           />
-          <button onClick={handleSendMessage}>Send</button>
+          <button onClick={handleSendMessage}>Sendooo</button>
         </div>
       </div>
     </div>
