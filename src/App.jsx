@@ -3,27 +3,23 @@ import { socket } from "./socket";
 import "./style.css";
 
 export default function App() {
-  // --- Initialize state from localStorage ---
+  // --- All your existing state and refs remain the same ---
   const [username, setUsername] = useState(() => localStorage.getItem("chatUsername") || "");
   const [room, setRoom] = useState(() => localStorage.getItem("chatRoom") || "");
   const [inChat, setInChat] = useState(() => !!(localStorage.getItem("chatUsername") && localStorage.getItem("chatRoom")));
-
-  // Other state
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
   const [typingDisplay, setTypingDisplay] = useState("");
   const [activeChat, setActiveChat] = useState(() => localStorage.getItem("chatRoom") || "");
-
-  // Refs
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
+  // --- All your existing functions and useEffects remain the same ---
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Effect for socket event listeners
   useEffect(() => {
     function onConnect() {
       console.log("Socket connected!");
@@ -56,13 +52,12 @@ export default function App() {
         setTypingDisplay("");
       }
     }
-    // --- NEW: Listener for when history is cleared ---
     function onHistoryCleared() {
-        setMessages([]); // Clear messages from the UI
+      setMessages([]);
     }
 
     if (inChat) {
-        socket.connect();
+      socket.connect();
     }
     
     socket.on("connect", onConnect);
@@ -71,7 +66,7 @@ export default function App() {
     socket.on("message", onMessage);
     socket.on("roomData", onRoomData);
     socket.on("userTyping", onUserTyping);
-    socket.on("historyCleared", onHistoryCleared); // Add the new listener
+    socket.on("historyCleared", onHistoryCleared);
 
     return () => {
       socket.off("connect", onConnect);
@@ -80,7 +75,7 @@ export default function App() {
       socket.off("message", onMessage);
       socket.off("roomData", onRoomData);
       socket.off("userTyping", onUserTyping);
-      socket.off("historyCleared", onHistoryCleared); // Cleanup the new listener
+      socket.off("historyCleared", onHistoryCleared);
       socket.disconnect();
     };
   }, [inChat, username, room]);
@@ -109,10 +104,9 @@ export default function App() {
     setActiveChat("");
   }
 
-  // --- NEW: Handler for the clear chat button ---
   function handleClearChat() {
     if (window.confirm("Are you sure you want to permanently delete this room's chat history for everyone?")) {
-        socket.emit('clearHistory', { room });
+      socket.emit('clearHistory', { room });
     }
   }
 
@@ -139,6 +133,15 @@ export default function App() {
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("typing", { room, isTyping: false, recipient });
     }, 2000);
+  }
+
+  // --- NEW: Function to handle key presses in the input ---
+  function handleKeyDown(event) {
+    handleTyping(); // We still want the "is typing" indicator to work on any key press
+    if (event.key === 'Enter') {
+      event.preventDefault(); // Prevents a new line from being added
+      handleSendMessage();
+    }
   }
 
   const displayedMessages = messages.filter(msg => {
@@ -177,10 +180,12 @@ export default function App() {
             ))}
           </ul>
         </div>
-        {/* --- NEW: Button group at the bottom --- */}
-        <div>
-            <button onClick={handleClearChat} className="clear-chat-button">Clear Chat</button>
-            <button onClick={handleLogout} className="logout-button">Logout</button>
+        <div className="sidebar-footer">
+          <div className="current-user-display">
+            Logged in as: <strong>{username}</strong>
+          </div>
+          <button onClick={handleClearChat} className="clear-chat-button">Clear Chat</button>
+          <button onClick={handleLogout} className="logout-button">Logout</button>
         </div>
       </div>
       <div className="chat-window">
@@ -202,8 +207,15 @@ export default function App() {
           <div ref={messagesEndRef} />
         </div>
         <div className="typing-indicator">{typingDisplay}</div>
+        
+        {/* --- UPDATE: The input now uses the new handleKeyDown function --- */}
         <div className="message-input-area">
-          <input value={messageInput} onChange={(e) => setMessageInput(e.target.value)} onKeyDown={handleTyping} placeholder={`Message ${activeChat}`} />
+          <input 
+            value={messageInput} 
+            onChange={(e) => setMessageInput(e.target.value)} 
+            onKeyDown={handleKeyDown} 
+            placeholder={`Message ${activeChat}`} 
+          />
           <button onClick={handleSendMessage}>Send</button>
         </div>
       </div>
