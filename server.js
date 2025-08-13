@@ -1,4 +1,4 @@
-// server.js (UPDATED FOR CLEAR HISTORY)
+// server.js (UPDATED TO DETECT MENTIONS)
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -61,9 +61,22 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- UPDATE: This handler now detects mentions ---
   socket.on('chatMessage', async (msg) => {
-    const messageData = { user: socket.username, text: msg, timestamp: new Date(), isPrivate: false };
+    // Regular expression to find @mentions
+    const mentionRegex = /@(\w+)/g;
+    const mentions = [...msg.matchAll(mentionRegex)].map(match => match[1]);
+
+    const messageData = {
+      user: socket.username,
+      text: msg,
+      timestamp: new Date(),
+      isPrivate: false,
+      mentions: mentions // NEW: Add the list of mentioned users
+    };
+    
     io.to(socket.room).emit('message', messageData);
+
     try {
       await dbPool.query('INSERT INTO messages (room_name, username, message_text) VALUES (?, ?, ?)', [socket.room, socket.username, msg]);
     } catch (error) {
@@ -80,14 +93,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // *** NEW: Handler to clear chat history ***
   socket.on('clearHistory', async ({ room }) => {
     try {
-      // Step 1: Delete messages from the database for the given room
       await dbPool.query('DELETE FROM messages WHERE room_name = ?', [room]);
       console.log(`History cleared for room: ${room}`);
-
-      // Step 2: Notify all clients in the room to clear their chat windows
       io.to(room).emit('historyCleared');
     } catch (error) {
       console.error('Error clearing history:', error);

@@ -509,6 +509,64 @@ html, body, #root {
     display: none;
 }
 
+/* --- 9. Mention Suggestions --- */
+
+.message-input-area {
+    position: relative; /* Required for positioning the suggestion box */
+}
+
+.mention-suggestions {
+    position: absolute;
+    bottom: 100%; /* Position it right above the input area */
+    left: 20px;
+    right: 20px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.mention-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.mention-item:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mention-item:hover {
+    background-color: #f0edff;
+}
+
+/* --- 10. Mention Highlighting --- */
+
+/* Style for the entire message bubble when you are mentioned */
+.mentioned-message {
+    background-color: #fff9e6; /* A soft yellow highlight */
+    border-left: 3px solid #f39c12;
+}
+
+/* Style for the @username text inside any message */
+.mention-highlight {
+    font-weight: 600;
+    color: var(--primary-color);
+    background-color: #f0edff;
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+
+/* Special style for when you are mentioned */
+.mention-highlight.mention-me {
+    background-color: #f39c12;
+    color: white;
+}
+
 /* For small mobile phones */
 @media (max-width: 480px) {
   .login-page-wrapper {

@@ -4,7 +4,7 @@ import "./style.css";
 import ParticleBackground from "./ParticleBackground";
 import { IoSend, IoAttach } from "react-icons/io5";
 
-// --- NEW: Helper function to get initials from a name ---
+// --- Helper functions for Avatars ---
 const getInitials = (name) => {
   if (!name) return '';
   const words = name.split(' ');
@@ -13,21 +13,15 @@ const getInitials = (name) => {
   }
   return name.substring(0, 2);
 };
-
-// --- NEW: Helper function to get a consistent color from a name ---
-const avatarColors = [
-    '#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', 
-    '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'
-];
+const avatarColors = ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
 const getColorFromName = (name) => {
     if (!name) return '#ccc';
     const charCodeSum = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return avatarColors[charCodeSum % avatarColors.length];
 };
 
-
 export default function App() {
-  // --- All your existing state and refs remain the same ---
+  // --- Existing state ---
   const [username, setUsername] = useState(() => localStorage.getItem("chatUsername") || "");
   const [room, setRoom] = useState(() => localStorage.getItem("chatRoom") || "");
   const [inChat, setInChat] = useState(() => !!(localStorage.getItem("chatUsername") && localStorage.getItem("chatRoom")));
@@ -36,10 +30,16 @@ export default function App() {
   const [messageInput, setMessageInput] = useState("");
   const [typingDisplay, setTypingDisplay] = useState("");
   const [activeChat, setActiveChat] = useState(() => localStorage.getItem("chatRoom") || "");
+  
+  // --- NEW: State for mention suggestions ---
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // --- Existing refs ---
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // --- All your existing functions and useEffects remain the same ---
+  // --- Existing functions and useEffects ---
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -143,11 +143,45 @@ export default function App() {
         socket.emit("chatMessage", messageInput);
       }
       setMessageInput("");
+      setShowSuggestions(false); // Hide suggestions after sending
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       const recipient = isPrivateChat ? activeChat : null;
       socket.emit("typing", { room, isTyping: false, recipient });
     }
   }
+  
+  // --- NEW: Function to handle input changes for mentions ---
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setMessageInput(value);
+
+    // Check if we are in the main room chat
+    if (activeChat === room) {
+        const lastWord = value.split(" ").pop();
+        if (lastWord.startsWith("@")) {
+          const searchTerm = lastWord.substring(1).toLowerCase();
+          const onlineUsers = users.filter(u => u !== username);
+          const suggestions = onlineUsers.filter(user =>
+            user.toLowerCase().startsWith(searchTerm)
+          );
+          setMentionSuggestions(suggestions);
+          setShowSuggestions(suggestions.length > 0);
+        } else {
+          setShowSuggestions(false);
+        }
+    } else {
+        setShowSuggestions(false); // No suggestions in private chats
+    }
+  };
+  
+  // --- NEW: Function to handle selecting a user from suggestions ---
+  const handleMentionSelect = (selectedUser) => {
+    const words = messageInput.split(" ");
+    words.pop(); // Remove the partial @mention
+    words.push(`@${selectedUser} `); // Add the full mention with a space
+    setMessageInput(words.join(" "));
+    setShowSuggestions(false);
+  };
 
   function handleTyping() {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -180,7 +214,7 @@ export default function App() {
       <div className="login-page-wrapper">
         <ParticleBackground />
         <div className="login-container">
-          <h2>Join Chat Room</h2>
+          <h2>Lan Chat</h2>
           <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter username" />
           <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Enter room name" />
           <button onClick={handleJoinChat}>Join</button>
@@ -247,12 +281,21 @@ export default function App() {
         </div>
         <div className="typing-indicator">{typingDisplay}</div>
         <div className="message-input-area">
+            {showSuggestions && (
+                <div className="mention-suggestions">
+                    {mentionSuggestions.map(user => (
+                        <div key={user} className="mention-item" onClick={() => handleMentionSelect(user)}>
+                            {user}
+                        </div>
+                    ))}
+                </div>
+            )}
           <button className="icon-button">
             <IoAttach size={22} />
           </button>
           <input 
             value={messageInput} 
-            onChange={(e) => setMessageInput(e.target.value)} 
+            onChange={handleInputChange} 
             onKeyDown={handleKeyDown} 
             placeholder={`Message ${activeChat}`} 
           />
